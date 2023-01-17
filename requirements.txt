@@ -1,0 +1,9 @@
+numpy
+pandas
+#jupyterlab
+ipykernel
+tqdm
+snakemake
+nbconvert
+matplotlib
+Biopython

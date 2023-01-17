@@ -1,0 +1,5 @@
+sample_urls:
+  NA19471: "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/LWK/NA19471/exome_alignment/NA19471.alt_bwamem_GRCh38DH.20150826.LWK.exome.cram"
+  HG00537: "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/CHS/HG00537/exome_alignment/HG00537.alt_bwamem_GRCh38DH.20150826.CHS.exome.cram"
+reference_genome:
+  test: "test"
