@@ -9,7 +9,30 @@ install $(VIRT):
 	python3 -m venv $(VIRT)
 	$(VIRT)/bin/pip install --upgrade pip setuptools wheel
 	$(VIRT)/bin/pip install -r requirements.txt
+	$(VIRT)/bin/pip install --editable .
 	$(VIRT)/bin/python setup.py develop
 
+
 run_benchmark $(VIRT):
-	snakemake --use-singularity -k --cores 10 --snakefile snakemake/Snakefile --configfile snakemake/config.yaml
+	snakemake \
+		--use-singularity \
+		--singularity-args "-B $(PWD):$(PWD)" \
+		-k \
+		--verbose \
+		--latency-wait 20 \
+		--cores 16 \
+		--snakefile snakemake/Snakefile \
+		--configfile snakemake/config.yaml 
+
+
+test_benchmark $(VIRT):
+	snakemake \
+		--use-singularity \
+		--singularity-args "-B $(PWD):$(PWD)" \
+		-k \
+		--verbose \
+		--latency-wait 20 \
+		--cores 25 \
+		--snakefile snakemake/Snakefile \
+		--configfile snakemake/config.yaml \
+		--keep-incomplete

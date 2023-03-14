@@ -1,0 +1,14 @@
+README.md
+setup.py
+src/hla_typing_benchmark/__init__.py
+src/hla_typing_benchmark/create_config.py
+src/hla_typing_benchmark/create_gold_standard.py
+src/hla_typing_benchmark/parse_data.py
+src/hla_typing_benchmark/parse_typing_results.py
+src/hla_typing_benchmark/summarise_results.py
+src/hla_typing_benchmark.egg-info/PKG-INFO
+src/hla_typing_benchmark.egg-info/SOURCES.txt
+src/hla_typing_benchmark.egg-info/dependency_links.txt
+src/hla_typing_benchmark.egg-info/entry_points.txt
+src/hla_typing_benchmark.egg-info/requires.txt
+src/hla_typing_benchmark.egg-info/top_level.txt

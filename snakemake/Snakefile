@@ -3,145 +3,390 @@ configfile: "config.yaml"
 def mem(gb=0,mb=0,kb=0,b=0):
     return gb*10**9 + mb*10**6 + kb*10**3 + b
 
-ruleorder: download_data > index_cram #> convert_data > index_bam > measure_depth
+ruleorder: download_wes_samples > index_cram > cram_2_bam > index_bam #> measure_depth
 
 rule all:
     input:
-        # expand(output_dir + "kourami/{sample_id}.txt", sample_id = config["sample_urls"]),
-        # expand(output_dir + "hisatgenotype/{sample_id}.txt", sample_id = config["sample_urls"]),
-        # expand(output_dir + "hla-la/{sample_id}.txt", sample_id = config["sample_urls"]),
-        # expand(output_dir + "optitype/{sample_id}.txt", sample_id = config["sample_urls"]),
+        # expand("results/04_optitype/{sample_id}/{sample_id}_result.tsv", sample_id = config["sample_urls"]),
+        # expand("results/04_kourami/{sample_id}/{sample_id}_result.tsv", sample_id = config["sample_urls"]),
+        # expand("results/04_hisat-genotype/{sample_id}/assembly_graph-hla.{sample_id}_r1_fq-hla-extracted-1_fq.report", sample_id = config["sample_urls"]),
+        # expand("results/04_hla-la/{sample_id}/{sample_id}_result.tsv", sample_id = config["sample_urls"]),
+        "results/05_collected_typing_results/typing_results.tsv"
         # expand(output_dir + "depth/{sample_id}.depth.mosdepth.summary.txt", sample_id = config["sample_urls"])
-        expand("results/00_cram_downloads/{sample_id}.cram.crai", sample_id=config["sample_urls"])
 
 
-rule download_data:
+# Downloading sample and reference data
+
+rule download_wes_samples:
     output:
-        cram = "results/00_cram_downloads/{sample_id}.cram"
-    resources:
-        walltime = 10000
+        cram = "results/00_cram/{sample_id}.cram"
     run:
         url = config["sample_urls"][wildcards.sample_id]
         shell("wget {url} -O {output.cram}")
 
+
+rule download_reference_genome:
+    output: "results/00_reference_data/GRCh38_full_analysis_set_plus_decoy_hla.fa"
+    params:
+        ref_genome = config['reference_genome']['GRCh38']
+    shell: "wget {params.ref_genome} -O {output}"
+
+
+# CRAM conversion and indexing
+
 rule index_cram:
     input:
-        cram = rules.download_data.output.cram
-    threads: 10
+        cram = rules.download_wes_samples.output.cram
+    threads: 8
+    resources: 
+        mem = mem(gb = 20),
+    output:
+        crai = "results/00_cram/{sample_id}.cram.crai",
+    singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
+    shell: 
+        "samtools index -@{threads} {input.cram}"
+
+rule cram_2_bam:
+    input:
+        cram = rules.download_wes_samples.output.cram,
+        ref_genome = rules.download_reference_genome.output,
+    threads: 8
     resources: 
         mem = mem(gb = 40),
-        walltime = 10000
     output:
-        crai = "results/00_cram_downloads/{sample_id}.cram.crai",
-    container:
-        "https://hub.docker.com/r/staphb/samtools",
+        bam = "results/01_bam/{sample_id}.bam",
+    singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
     shell:
         """
-        samtools index -@4 {input.cram}
+        samtools view -b -@ {threads} -T {input.ref_genome} -o - {input.cram} | \
+        samtools sort --threads {threads} -n - | \
+        samtools fixmate --threads {threads} -m - - | \
+        samtools sort -o {output.bam} -
         """
 
-# rule download_reference_genome:
-#     input:
-#     output:
-#     shell:
-
-# #/home/projects/cu_10148/people/nikthu/data/ref_genome_data/GRCh38_full_analysis_set_plus_decoy_hla.fa
-# rule cram_2_bam:
-#     input:
-#         cram = rules.download_data.output.cram
-#         crai = rules.index_cram.output.crai
-#         ref_genome = rules.download_reference_genome
-#     threads: 10
-#     resources: 
-#         mem = mem(gb = 40),
-#         walltime = 50000
-#     output:
-#         bam = "results/01_bam/{sample_id}.bam",
-#         bai = "results/01_bam/{sample_id}.bai",
-#     shell:
-#         """
-#         samtools view -b -@ {resources.cores} -T {input.ref_genome} -o - {input.cram} | samtools sort --threads {resources.cores} -n - | samtools fixmate --threads {resources.cores} -m - {output.bam}
-#         samtools index -@ {resources.cores} {output.bam}
-#         """"
-
-# rule index_bam:
-#     input:
-#         bam = data_dir + "{sample_id}.bam"
-#     threads: 40
-#     resources: 
-#         mem = mem(gb = 120),
-#         walltime = 10000
-#     output:
-#         bai = temp(data_dir + "{sample_id}.bam.bai"),
-#     run:
-#         shell(script_dir + "index_bam.sh {input.bam}")
-
-# rule measure_depth:
-#     input:
-#         cram = data_dir + "cram_downloads/{sample_id}.cram",
-#         crai = data_dir + "cram_downloads/{sample_id}.cram.crai"
-#     threads: 10
-#     resources: 
-#         mem = mem(gb = 20),
-#         walltime = 10000
-#     output:
-#         depth = output_dir + "depth/{sample_id}.depth.mosdepth.summary.txt"
-#     run:
-#         shell(script_dir + "measure_depth.sh {wildcards.sample_id}")
+rule index_bam:
+    input: 
+        bam = rules.cram_2_bam.output.bam,
+    output:
+        bai = "results/01_bam/{sample_id}.bam.bai",
+    threads: 8
+    resources: 
+        mem = mem(gb = 40),
+    singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
+    shell:
+        """
+        samtools index -@{threads} {input.bam}
+        """
 
 
-# rule submit_kourami:
-#     input:
-#         bam = data_dir + "{sample_id}.bam",
-#         bai = data_dir + "{sample_id}.bam.bai"
-#     threads: 10
-#     resources: 
-#         mem = mem(gb = 50),
-#         walltime = 20000
-#     output:
-#         kourami = output_dir + "kourami/{sample_id}.txt",
-#     run:
-#         shell(script_dir + "tool_jobscripts/job_kourami.sh {input.bam} {wildcards.sample_id}")
+rule bam2fastq:
+    input:
+        bam = rules.cram_2_bam.output.bam,
+        bai = rules.index_bam.output.bai,
+    output:
+        fq1 = "results/02_fastq/{sample_id}.r1.fq",
+        fq2 = "results/02_fastq/{sample_id}.r2.fq",
+    params:
+        hla_ref = "/usr/local/bin/OptiType-1.3.4/data/hla_reference_dna.fasta",
+    threads: 8
+    resources: 
+        mem = mem(gb = 40),
+    singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
+    shell:
+        """
+        samtools collate --threads {threads} {input.bam} -O | samtools bam2fq -1 {output.fq1} -2 {output.fq2} -N -O -
+        """
 
-# rule submit_optitype:
-#     input:
-#         fastq1 = data_dir + "{sample_id}.bam_reads1.fastq.gz",
-#         fastq2 = data_dir + "{sample_id}.bam_reads2.fastq.gz"
-#     threads: 10
-#     resources: 
-#         mem = mem(gb = 50),
-#         walltime = 20000
-#     output:
-#         optitype = output_dir + "optitype/{sample_id}.txt"
-#     run:
-#         shell(script_dir + "tool_jobscripts/job_optitype.sh {wildcards.sample_id}")
+# # # HLA typing
+
+# Optitype
+# Ref: 
+
+# HLA read extraction - only needed for Optitype
+# Split into two to avoid using razers3 paired mapping
+
+rule hla_read_extraction:
+    input:
+        fq = "results/02_fastq/{sample_id}.{read_pair}.fq"
+    output:
+        fq = "results/03_fastq_hla_extracted/{sample_id}.{read_pair}.fq",
+    threads: 8
+    resources: 
+        mem = mem(gb = 20),
+    singularity: "docker://zlskidmore/optitype:1.3.4",
+    shell:
+        """
+        razers3 \
+            -i 95 \
+            -m 1 \
+            -dr 0 \
+            -tc {threads} \
+            -o {input.fq}_temp.bam \
+            /usr/local/bin/OptiType-1.3.4/data/hla_reference_dna.fasta \
+            {input.fq}
+
+        samtools bam2fq {input.fq}_temp.bam > {output.fq}
+
+        rm {input.fq}_temp.bam
+        """
+        
+
+rule run_optitype:
+    input:
+        fq1 = "results/03_fastq_hla_extracted/{sample_id}.r1.fq",
+        fq2 = "results/03_fastq_hla_extracted/{sample_id}.r2.fq",
+    threads: 4,
+    resources: 
+        mem = mem(gb = 20),
+    output:
+        typing_result = "results/04_optitype/{sample_id}/{sample_id}_result.tsv",
+    singularity: "docker://umccr/optitype:1.3.4",
+    shell:
+        """
+        python /usr/local/bin/OptiType/OptiTypePipeline.py \
+            -i {input.fq1} {input.fq2} \
+            -d \
+            -v \
+            -o $(dirname '{output.typing_result}') \
+            --prefix {wildcards.sample_id}
+        """
 
 
-# rule submit_hisatgenotype:
-#     input:
-#         fastq1 = data_dir + "{sample_id}.bam_reads1.fastq.gz",
-#         fastq2 = data_dir + "{sample_id}.bam_reads2.fastq.gz"
-#     threads: 10
-#     resources: 
-#         mem = mem(gb = 50),
-#         walltime = 20000
-#     output:
-#         hisatgenotype = output_dir + "hisatgenotype/{sample_id}.txt"
-#     run:
-#         shell(script_dir + "tool_jobscripts/job_hisatgenotype.sh {wildcards.sample_id}")
+# # Kourami
+# # References:
+# # https://github.com/Kingsford-Group/kourami/blob/master/preprocessing.md
 
 
-# rule submit_hla_la:
-#     input:
-#         bam = data_dir + "{sample_id}.bam",
-#         bai = data_dir + "{sample_id}.bam.bai"
-#     threads: 10
-#     resources: 
-#         mem = mem(gb = 185),
-#         walltime = 172800
-#     output:
-#         hla_la = output_dir + "hla-la/{sample_id}.txt"
-#     run:
-#         shell(script_dir + "tool_jobscripts/job_hla-la.sh {input.bam} /home/projects/cu_10148/people/nikthu/output/hla-la {wildcards.sample_id}")
+rule bwa_index_ref:
+    input:
+        ref_genome = rules.download_reference_genome.output,
+    output:
+        ref_genome_index = "results/00_reference_data/GRCh38_full_analysis_set_plus_decoy_hla.fa.bwt"
+    singularity: "docker://zlskidmore/kourami:0.9.7"
+    shell:
+        """
+        bwa index {input.ref_genome}
+        """
+
+
+rule kourami_mapping:
+    input:
+        ref_genome = rules.download_reference_genome.output,
+        ref_genome_index = rules.bwa_index_ref.output.ref_genome_index,
+        bam = rules.cram_2_bam.output.bam,
+        bai = rules.index_bam.output.bai,
+    output:
+        kourami_mapping = "results/02_kourami_alignment/{sample_id}_on_KouramiPanel.bam"
+    threads: 8
+    resources: 
+        mem = mem(gb = 20),
+    singularity: "docker://zlskidmore/kourami:0.9.7"
+    shell:
+        """
+        mv {wildcards.sample_id}_on_KouramiPanel.bam {output.kourami_mapping}
+        mv {wildcards.sample_id}_extract_*.fq.gz $(dirname '{output.kourami_mapping}')
+        """
+
+
+rule run_kourami:
+    input:
+        kourami_mapping = rules.kourami_mapping.output.kourami_mapping,
+    output:
+        typing_result = "results/04_kourami/{sample_id}/{sample_id}_result.tsv"
+    threads: 8
+    resources: 
+        mem = mem(gb = 20),
+    singularity: "docker://zlskidmore/kourami:0.9.7"
+    shell:
+        """
+        java -jar /usr/local/bin/kourami-0.9.6/target/Kourami.jar \
+            -d /usr/local/bin/kourami-0.9.6/db \
+            -o {wildcards.sample_id} \
+            {input.kourami_mapping}
+
+        mv {wildcards.sample_id}.result {output.typing_result}
+        mv {wildcards.sample_id}* $(dirname '{output.typing_result}')
+        """
+
+#HISAT-genotype
+
+rule run_hisatgenotype:
+    input:
+        fq1 = rules.bam2fastq.output.fq1,
+        fq2 = rules.bam2fastq.output.fq2,
+    output:
+        typing_result = "results/04_hisat-genotype/{sample_id}/assembly_graph-hla.{sample_id}_r1_fq-hla-extracted-1_fq.report"
+    threads: 8
+    resources: 
+        mem = mem(gb = 10),
+    singularity: "docker://donaldducker1234/hisat-genotype:1.3.2"
+    shell:
+        """
+        python /hisatgenotype/hisatgenotype \
+            --base hla \
+            --locus-list A,B,C,DRB1,DQB1 \
+            --threads {threads} \
+            --in-dir $PWD \
+            --out-dir $(dirname '{output.typing_result}') \
+            -1 {input.fq1} \
+            -2 {input.fq2}
+        
+        """
+
+# # #HLA*LA
+
+rule download_hla_la_ref:
+    output: "results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT.tar.gz",
+    threads: 10
+    resources:
+        mem = mem(gb = 50)
+    singularity: "docker://zlskidmore/hla-la:1.0.1"
+    shell:
+        """
+        wget http://www.well.ox.ac.uk/downloads/PRG_MHC_GRCh38_withIMGT.tar.gz -O {output}
+        """
+         
+rule generate_hla_la_graph:
+    input: rules.download_hla_la_ref.output,
+    output: 
+        graph="results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT/serializedGRAPH",
+        fasta="results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT/extendedReferenceGenome/extendedReferenceGenome.fa",
+    params:
+        rule_folder = "results/00_hla_la_reference/"
+    threads: 10
+    resources:
+        mem = mem(gb = 50)
+    singularity: "docker://zlskidmore/hla-la:1.0.1"
+    shell:
+        """
+        tar -xvzf {input} -C {params.rule_folder}
+        /usr/local/bin/HLA-LA/bin/HLA-LA \
+            --action prepareGraph \
+            --PRG_graph_dir  $(dirname '{output.graph}')
+        """
+
+rule index_hla_la_graph:
+    input: rules.generate_hla_la_graph.output.fasta,
+    output: "results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT/extendedReferenceGenome/extendedReferenceGenome.fa.bwt"
+    singularity: "docker://zlskidmore/hla-la:1.0.1" 
+    shell:
+        """
+        bwa index {input}
+        """
+
+rule run_hla_la:
+    input:
+        bam = rules.cram_2_bam.output.bam,
+        bai = rules.index_bam.output.bai,
+        graph = rules.generate_hla_la_graph.output.graph,
+        graph_index = rules.index_hla_la_graph.output
+    output:
+        typing_result = "results/04_hla-la/{sample_id}/hla/R1_bestguess_G.txt"
+    threads: 10
+    resources: 
+        mem = mem(gb = 50),
+    singularity: "docker://zlskidmore/hla-la:1.0.1"
+    shell:
+        """
+        graph_input=$(realpath {input.graph})
+
+        HLA-LA.pl \
+            --BAM {input.bam} \
+            --graph ../../../../../$(dirname $graph_input) \
+            --sampleID {wildcards.sample_id} \
+            --maxThreads {threads} \
+            --workingDir $(dirname $(dirname '{output.typing_result}'))
+        """
+
+
+# # Download and reformat Gold standard dataset
+
+rule download_HLA_referrence_data:
+    output:
+        p_group = "results/00_IMGT_reference/hla_nom_p.txt",
+        deleted = "results/00_IMGT_reference/Deleted_alleles.txt",
+    shell:
+        """
+        wget https://raw.githubusercontent.com/ANHIG/IMGTHLA/Latest/wmda/hla_nom_p.txt -O {output.p_group}
+        wget https://raw.githubusercontent.com/ANHIG/IMGTHLA/Latest/Deleted_alleles.txt -O {output.deleted}
+        """
+        
+rule download_gold_standard_data:
+    output: "results/00_1000G_reference/1000G_hla_diversity_2014.txt"
+    shell:
+        """
+        wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20140725_hla_genotypes/20140702_hla_diversity.txt -O {output}
+        """
+
+
+rule reformat_gold_standard:
+    input: rules.download_gold_standard_data.output,
+    output: "results/01_1000G_reference/1000G_2014_cleaned.tsv",
+    shell:
+        """
+        create_gold_standard \
+            --input {input} \
+            --output {output}
+        """
+
+#Collect all typing results
+rule collect_typing_results:
+    input:
+        gs_data = rules.reformat_gold_standard.output,
+        optitype = expand(rules.run_optitype.output.typing_result, sample_id = config["sample_urls"]),
+        kourami = expand(rules.run_kourami.output.typing_result, sample_id = config["sample_urls"]),
+        hisatgenotype = expand(rules.run_hisatgenotype.output.typing_result, sample_id = config["sample_urls"]),
+        hla_la = expand(rules.run_hla_la.output.typing_result, sample_id = config["sample_urls"]),
+    output:
+        optitype = "results/04_optitype/OK",
+        kourami = "results/04_kourami/OK",
+        hisatgenotype = "results/04_hisat-genotype/OK",
+        hla_la = "results/04_hla-la/OK",
+    shell:
+        """
+        touch {output.optitype}
+        touch {output.kourami}
+        touch {output.hisatgenotype}
+        touch {output.hla_la}
+        """
+
+# Collect typing results into one file
+rule parse_typing_results:
+    input:
+        gs_data = rules.reformat_gold_standard.output,
+        optitype = rules.collect_typing_results.output.optitype,
+        kourami = rules.collect_typing_results.output.kourami,
+        hisatgenotype = rules.collect_typing_results.output.hisatgenotype,
+        hla_la = rules.collect_typing_results.output.hla_la,
+    output:
+        typing_results = "results/05_collected_typing_results/typing_results.json"
+    shell:
+        """
+        parse_typing_results \
+            --gs-data {input.gs_data} \
+            --optitype $(dirname {input.optitype}) \
+            --kourami $(dirname {input.kourami}) \
+            --hisat-genotype $(dirname {input.hisatgenotype}) \
+            --hla-la $(dirname {input.hla_la}) \
+            --output {output}
+        """
+
+
+# Summarise results and generate plots
+rule generate_plots:
+    input: rules.parse_typing_results.output,
+    output:
+        class_plot = "results/05_collected_typing_results/HLA_class_performance.jpg",
+        loci_plot = "results/05_collected_typing_results/HLA_loci_performance.jpg",
+        results_table = "results/05_collected_typing_results/typing_results.tsv",
+    shell:
+        """
+        summarise_results \
+            --typing-results {input} \
+            --results-table {output.results_table} \
+            --class-plot {output.class_plot} \
+            --loci-plot {output.loci_plot}
+        """
+
 
 

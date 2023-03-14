@@ -7,11 +7,8 @@ file_folder = pathlib.Path(__file__).parent
 with (file_folder / 'requirements.txt').open() as f:
     all_reqs = f.read().split('\n')
 
-install_requires = [x.strip() for x in all_reqs if 'git+' not in x]
-dependency_links = [x.strip().replace('git+', '') for x in all_reqs if x.startswith('git+')] #yapf: disable
-
 setup(
-    name='munin_gen0_designs',
+    name='hla_typing_benchmark',
     version='0',
     license='Proprietary',
     classifiers=[
@@ -20,11 +17,17 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     keywords='',
-    packages=find_packages(where='lib', exclude=['docs', 'tests*']),
-    package_dir={'': 'lib'},
+    packages=find_packages(where='src', exclude=['docs', 'tests*']),
+    package_dir={'':'src'},
     include_package_data=True,
-    author='Evaxion',
-    install_requires=install_requires,
-    dependency_links=dependency_links,
+    author='Nikolas Thuesen',
+    install_requires=all_reqs,
     setup_requires=['wheel'],
+    entry_points={
+            'console_scripts': [
+                'parse_typing_results = hla_typing_benchmark.parse_typing_results:main',
+                'create_gold_standard = hla_typing_benchmark.create_gold_standard:main',
+                'summarise_results = hla_typing_benchmark.summarise_results:main',
+            ]
+        },
 )
