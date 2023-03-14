@@ -1,4 +1,0 @@
-[console_scripts]
-create_gold_standard = hla_typing_benchmark.create_gold_standard:main
-parse_typing_results = hla_typing_benchmark.parse_typing_results:main
-summarise_results = hla_typing_benchmark.summarise_results:main

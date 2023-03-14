@@ -1,9 +1,0 @@
-numpy
-pandas
-seaborn
-ipykernel
-tqdm
-snakemake
-nbconvert
-matplotlib
-Biopython
