@@ -3,16 +3,11 @@ configfile: "config.yaml"
 def mem(gb=0,mb=0,kb=0,b=0):
     return gb*10**9 + mb*10**6 + kb*10**3 + b
 
-ruleorder: download_wes_samples > index_cram > cram_2_bam > index_bam #> measure_depth
+ruleorder: download_wes_samples > index_cram > cram_2_bam > index_bam
 
 rule all:
     input:
-        # expand("results/04_optitype/{sample_id}/{sample_id}_result.tsv", sample_id = config["sample_urls"]),
-        # expand("results/04_kourami/{sample_id}/{sample_id}_result.tsv", sample_id = config["sample_urls"]),
-        # expand("results/04_hisat-genotype/{sample_id}/assembly_graph-hla.{sample_id}_r1_fq-hla-extracted-1_fq.report", sample_id = config["sample_urls"]),
-        # expand("results/04_hla-la/{sample_id}/{sample_id}_result.tsv", sample_id = config["sample_urls"]),
         "results/05_collected_typing_results/typing_results.tsv"
-        # expand(output_dir + "depth/{sample_id}.depth.mosdepth.summary.txt", sample_id = config["sample_urls"])
 
 
 # Downloading sample and reference data
@@ -152,9 +147,9 @@ rule run_optitype:
         """
 
 
-# # Kourami
-# # References:
-# # https://github.com/Kingsford-Group/kourami/blob/master/preprocessing.md
+# Kourami
+# References:
+# https://github.com/Kingsford-Group/kourami/blob/master/preprocessing.md
 
 
 rule bwa_index_ref:
@@ -350,7 +345,7 @@ rule collect_typing_results:
         touch {output.hla_la}
         """
 
-# Collect typing results into one file
+# Merge typing results into one file and calculate performance
 rule parse_typing_results:
     input:
         gs_data = rules.reformat_gold_standard.output,
@@ -387,6 +382,3 @@ rule generate_plots:
             --class-plot {output.class_plot} \
             --loci-plot {output.loci_plot}
         """
-
-
-
