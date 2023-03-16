@@ -246,6 +246,7 @@ rule download_HLA_referrence_data:
         
 rule download_gold_standard_data:
     output: "results/00_1000G_reference/1000G_hla_diversity_2014.txt"
+    singularity: "docker://mwendler/wget"
     shell:
         """
         wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20140725_hla_genotypes/20140702_hla_diversity.txt -O {output}
