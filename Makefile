@@ -23,3 +23,14 @@ run_benchmark $(VIRT):
 		--cores 16 \
 		--snakefile snakemake/Snakefile \
 		--configfile snakemake/config.yaml 
+	
+run_slim_benchmark $(VIRT):
+	snakemake \
+		--use-singularity \
+		--singularity-args "-B $(PWD):$(PWD)" \
+		-k \
+		--verbose \
+		--latency-wait 20 \
+		--cores 24 \
+		--snakefile snakemake/Snakefile_slim \
+		--configfile snakemake/config.yaml

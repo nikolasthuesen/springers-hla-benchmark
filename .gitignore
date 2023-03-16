@@ -1,3 +1,5 @@
 results
 virt
 .snakemake
+src/hla_typing_benchmark.egg-info/
+src/hla_typing_benchmark/__pycache__/

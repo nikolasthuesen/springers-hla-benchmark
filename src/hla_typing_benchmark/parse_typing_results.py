@@ -73,9 +73,7 @@ def load_kourami_results(kourami_result_filepath):
 
         #If file is not empty:
         if os.stat(filename).st_size != 0:
-            temp_result_dict = {}
-            temp_result_dict_ambiguous = {}
-    
+            temp_result_dict = {}    
 
             with open(filename, 'r') as infile:
                 for line in infile:
@@ -101,7 +99,6 @@ def load_kourami_results(kourami_result_filepath):
 
             #Add sample prediction to dict
             kourami_results[subject_id] = temp_result_dict
-            
             
         #If file is empty, add an empty dict.
         else:
@@ -305,6 +302,7 @@ def validate_typing(typing_results_dict, gold_standard_df, subject_id_list, reso
                         predicted_alleles = typing_results_dict[tool][subject][locus]
                 
                 correct_alleles_list = gold_standard_df.loc[subject, locus]
+
                 num_correct_hits, correct_call, pred_call = validate_call(correct_alleles_list, predicted_alleles, resolution)
 
                 full_typing_results_dict[tool][locus][subject] = {}
@@ -349,25 +347,28 @@ def validate_typing(typing_results_dict, gold_standard_df, subject_id_list, reso
 
 
 def load_all_results(gs_data = 'results/01_1000G_reference/1000G_2014_cleaned.pkl',
-                        kourami_results = 'results/04_kourami', 
-                        hla_la_results = 'results/04_hla-la',
-                        optitype_results = 'results/04_optitype', 
-                        hisat_genotype_results = 'results/04_hisat-genotype'):
+                        kourami_path = None, 
+                        hla_la_path = None,
+                        optitype_path = None, 
+                        hisat_genotype_path = None):
 
     gs_two_field_df = pd.read_pickle(gs_data)
 
-    #Load results of the tools:
-    kourami_results = load_kourami_results(kourami_results)
-    hla_la_results = load_hla_la_results(hla_la_results)
-    optitype_results = load_optitype_results(optitype_results)
-    hisat_genotype_results = load_hisat_genotype_results(hisat_genotype_results)
+    typing_results_dict = {}
 
-    typing_results_dict = {
-        'Kourami' : kourami_results,
-        'HLA-LA' : hla_la_results,
-        'Optitype' : optitype_results,
-        'Hisatgenotype' : hisat_genotype_results,
-    }
+
+    #Load results of the tools:
+    if kourami_path != None:
+        typing_results_dict['Kourami'] = load_kourami_results(kourami_path)
+    
+    if hla_la_path != None:
+        typing_results_dict['HLA-LA'] = load_hla_la_results(hla_la_path)
+    
+    if optitype_path != None:
+        typing_results_dict['Optitype'] = load_optitype_results(optitype_path)
+    
+    if hisat_genotype_path != None:
+        typing_results_dict['Hisatgenotype'] = load_hisat_genotype_results(hisat_genotype_path)
 
     rename_resolutions = {
         'one_field' : '1-field',
@@ -399,10 +400,10 @@ def main():
     args = parser.parse_args()
 
     full_results = load_all_results(gs_data = args.gs_data,
-                                    kourami_results=args.kourami,
-                                    hla_la_results=args.hla_la,
-                                    optitype_results=args.optitype,
-                                    hisat_genotype_results=args.hisat_genotype)
+                                    kourami_path=args.kourami,
+                                    hla_la_path=args.hla_la,
+                                    optitype_path=args.optitype,
+                                    hisat_genotype_path=args.hisat_genotype)
 
 
     if not os.path.exists(os.path.dirname(args.output)):
@@ -422,20 +423,16 @@ def get_argparser():
 
 
     parser.add_argument('--kourami',
-                         help='Folder with HLA typing results from Kourami',
-                         default='results/04_kourami')
+                         help='Folder with HLA typing results from Kourami')
 
     parser.add_argument('--optitype',
-                         help='Folder with HLA typing results from Optitype',
-                         default='results/04_optitype')
+                         help='Folder with HLA typing results from Optitype')
 
     parser.add_argument('--hla-la',
-                         help='Folder with HLA typing results from HLA*LA',
-                         default='results/04_hla-la')
+                         help='Folder with HLA typing results from HLA*LA')
 
     parser.add_argument('--hisat-genotype',
-                         help='Folder with HLA typing results from HISAT-genotype',
-                         default='results/04_hisat-genotype')
+                         help='Folder with HLA typing results from HISAT-genotype')
 
     parser.add_argument('--output',
                         help='Path to save .json file with complete, collected typing results including call rate, typing accuracy etc.',

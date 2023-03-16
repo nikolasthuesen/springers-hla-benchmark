@@ -18,6 +18,10 @@ from collections import Counter
 #Set seaborn color palette:
 palette_list = list(sns.color_palette("colorblind"))
 
+#Order
+tool_order = ['Kourami', 'HLA-LA', 'Hisatgenotype', 'Optitype']
+metric_order = ['call_rate', '1-field', 'pseudosequence', 'P group', '2-field']
+
 
 def generate_results_as_table(results_dict):
 
@@ -41,14 +45,12 @@ def generate_results_as_table(results_dict):
 
         results_df = pd.DataFrame(reformatted_dict)
 
-
-        tool_order = ['Kourami', 'HLA-LA', 'Optitype', 'Hisatgenotype', 'STC-seq']
-        metric_order = ['call_rate', '1-field', 'pseudosequence', 'P group', '2-field']
-
         multi_tuples = []
         for tool in tool_order:
-            for metric in metric_order:
-                multi_tuples += [(tool, metric)]
+            #Only add results if typing exists for this tool
+            if tool in results_dict['1-field'].keys():
+                for metric in metric_order:
+                    multi_tuples += [(tool, metric)]
 
         multi_cols = pd.MultiIndex.from_tuples(multi_tuples, names=['Tool', 'Metric'])
 
@@ -64,12 +66,21 @@ def extract_results(results_dict, allele_index, resolution, labels):
 
 # Plots of the Performance of the tools
 
+tool_plot_names = {
+    'Kourami' : 'Kourami',
+    'HLA-LA' : 'HLA*LA',
+    'Hisatgenotype' : 'HISAT-genotype',
+    'Optitype' : 'Optitype'
+}
+
 def make_class_plot_from_allele_list(results_dict):
 
-    labels1 = ['Kourami', 'HLA-LA', 'Hisatgenotype', 'Optitype']
-    labels2 = ['Kourami', 'HLA-LA', 'Hisatgenotype',]
-    textlabels1 = ['Kourami', 'HLA*LA', 'HISAT-genotype', 'Optitype']
-    textlabels2 = ['Kourami', 'HLA*LA', 'HISAT-genotype', '']
+    labels1 = [tool for tool in results_dict['1-field'].keys()]
+    labels1 = sorted(labels1,key=tool_order.index)
+
+
+    textlabels1 = [tool_plot_names[l] for l in labels1]
+    textlabels2 = [l.replace('Optitype', '') for l in textlabels1]
 
     fig, axs = plt.subplot_mosaic([['A'], ['B']], constrained_layout=True, figsize=(18,12))
 
@@ -109,11 +120,14 @@ def make_class_plot_from_allele_list(results_dict):
 
         ax.legend()
 
+        #Dont annotate performance for Optitype for Class II loci
+        n_class_2_typers = len([n for n in results_dict['1-field'].keys() if n != 'Optitype'])
 
         def autolabel(rects, y_height):
             """Attach a text label above each bar in *rects*, displaying its height."""
             for rect in rects:
-                if (allele_index in ('HLA-II', 'DRB1', 'DQB1')) and (rect.get_x() > 2.5):
+                #Dont annotate performance for Optitype for Class II loci
+                if (allele_index in ('HLA-II', 'DRB1', 'DQB1')) and (rect.get_x() > n_class_2_typers - 0.5):
                     continue
                 else:
                     height = rect.get_height()
@@ -170,10 +184,11 @@ def make_class_plot_from_allele_list(results_dict):
 
 def make_loci_plot_from_allele_list(results_dict):
 
-    labels1 = ['Kourami', 'HLA-LA', 'Hisatgenotype', 'Optitype']
-    labels2 = ['Kourami', 'HLA-LA', 'Hisatgenotype', 'Optitype']
-    textlabels1 = ['Kourami', 'HLA*LA', 'HISAT-genotype', 'Optitype']
-    textlabels2 = ['Kourami', 'HLA*LA', 'HISAT-genotype', '']
+    labels1 = [tool for tool in results_dict['1-field'].keys()]
+    labels1 = sorted(labels1,key=tool_order.index)
+
+    textlabels1 = [tool_plot_names[l] for l in labels1]
+    textlabels2 = [l.replace('Optitype', '') for l in textlabels1]
 
     fig, axs = plt.subplot_mosaic([['A'], ['B'], ['C'], ['D'], ['E']], constrained_layout=True, figsize=(18,24))
 
@@ -195,24 +210,14 @@ def make_loci_plot_from_allele_list(results_dict):
             allele_index = 'DQB1'
             title = 'HLA-DQB1'
 
-        if allele_index in ('HLA-II', 'DRB1', 'DQB1'):
-            call_rate = [results_dict['1-field'][l][allele_index]['call_rate'] for l in labels2]
-            accuracy_one_field =  extract_results(results_dict, allele_index, '1-field', labels2)
-            accuracy_two_field = extract_results(results_dict, allele_index, '2-field', labels2)
-            accuracy_p_group = extract_results(results_dict, allele_index, 'P group', labels2)
-            accuracy_e_group =  extract_results(results_dict, allele_index, 'pseudosequence', labels2)
-        
-            x = np.arange(len(labels2))
-            
-        else:   
-            call_rate = [results_dict['1-field'][l][allele_index]['call_rate'] for l in labels1]
-            accuracy_one_field =  extract_results(results_dict, allele_index, '1-field', labels1)
-            accuracy_two_field = extract_results(results_dict, allele_index, '2-field', labels1)
-            accuracy_p_group = extract_results(results_dict, allele_index, 'P group', labels1)
-            accuracy_e_group =  extract_results(results_dict, allele_index, 'pseudosequence', labels1)
-
-            x = np.arange(len(labels1))  # the label locations
+        call_rate = [results_dict['1-field'][l][allele_index]['call_rate'] for l in labels1]
+        accuracy_one_field =  extract_results(results_dict, allele_index, '1-field', labels1)
+        accuracy_two_field = extract_results(results_dict, allele_index, '2-field', labels1)
+        accuracy_p_group = extract_results(results_dict, allele_index, 'P group', labels1)
+        accuracy_e_group =  extract_results(results_dict, allele_index, 'pseudosequence', labels1)
     
+        x = np.arange(len(labels1))
+        
 
         width = 0.18  # the width of the bars
         rects1 = ax.bar(x - 10.4*width/5, call_rate, width, label='call rate', color = '#808080')
@@ -232,11 +237,14 @@ def make_loci_plot_from_allele_list(results_dict):
 
         ax.legend()
 
+        #Dont annotate performance for Optitype for Class II loci
+        n_class_2_typers = len([n for n in results_dict['1-field'].keys() if n != 'Optitype'])
 
         def autolabel(rects, y_height):
             """Attach a text label above each bar in *rects*, displaying its height."""
             for rect in rects:
-                if (allele_index in ('HLA-II', 'DRB1', 'DQB1')) and (rect.get_x() > 2.5):
+                #Dont annotate performance for Optitype for Class II loci
+                if (allele_index in ('HLA-II', 'DRB1', 'DQB1')) and (rect.get_x() > n_class_2_typers - 0.5):
                     continue
                 else:
                     height = rect.get_height()
@@ -300,20 +308,7 @@ def main():
 
     results_df = generate_results_as_table(results_dict)
 
-    tool_order = ['Kourami', 'HLA-LA', 'Optitype', 'Hisatgenotype']
-    metric_order = ['call_rate', '1-field', 'pseudosequence', 'P group', '2-field']
-
-    multi_tuples = []
-    for tool in tool_order:
-        for metric in metric_order:
-            multi_tuples += [(tool, metric)]
-
-    multi_cols = pd.MultiIndex.from_tuples(multi_tuples, names=['Tool', 'Metric'])
-
-    results_df = pd.DataFrame(results_df, columns=multi_cols)
-
     results_df.to_csv(args.results_table, sep='\t')
-
 
     #Generate plots
 

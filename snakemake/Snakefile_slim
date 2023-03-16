@@ -230,71 +230,6 @@ rule run_hisatgenotype:
         
         """
 
-# # #HLA*LA
-
-rule download_hla_la_ref:
-    output: "results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT.tar.gz",
-    threads: 10
-    resources:
-        mem = mem(gb = 50)
-    singularity: "docker://zlskidmore/hla-la:1.0.1"
-    shell:
-        """
-        wget http://www.well.ox.ac.uk/downloads/PRG_MHC_GRCh38_withIMGT.tar.gz -O {output}
-        """
-         
-rule generate_hla_la_graph:
-    input: rules.download_hla_la_ref.output,
-    output: 
-        graph="results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT/serializedGRAPH",
-        fasta="results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT/extendedReferenceGenome/extendedReferenceGenome.fa",
-    params:
-        rule_folder = "results/00_hla_la_reference/"
-    threads: 10
-    resources:
-        mem = mem(gb = 50)
-    singularity: "docker://zlskidmore/hla-la:1.0.1"
-    shell:
-        """
-        tar -xvzf {input} -C {params.rule_folder}
-        /usr/local/bin/HLA-LA/bin/HLA-LA \
-            --action prepareGraph \
-            --PRG_graph_dir  $(dirname '{output.graph}')
-        """
-
-rule index_hla_la_graph:
-    input: rules.generate_hla_la_graph.output.fasta,
-    output: "results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT/extendedReferenceGenome/extendedReferenceGenome.fa.bwt"
-    singularity: "docker://zlskidmore/hla-la:1.0.1" 
-    shell:
-        """
-        bwa index {input}
-        """
-
-rule run_hla_la:
-    input:
-        bam = rules.cram_2_bam.output.bam,
-        bai = rules.index_bam.output.bai,
-        graph = rules.generate_hla_la_graph.output.graph,
-        graph_index = rules.index_hla_la_graph.output
-    output:
-        typing_result = "results/04_hla-la/{sample_id}/hla/R1_bestguess_G.txt"
-    threads: 10
-    resources: 
-        mem = mem(gb = 50),
-    singularity: "docker://zlskidmore/hla-la:1.0.1"
-    shell:
-        """
-        graph_input=$(realpath {input.graph})
-
-        HLA-LA.pl \
-            --BAM {input.bam} \
-            --graph ../../../../../$(dirname $graph_input) \
-            --sampleID {wildcards.sample_id} \
-            --maxThreads {threads} \
-            --workingDir $(dirname $(dirname '{output.typing_result}'))
-        """
-
 
 # # Download and reformat Gold standard dataset
 
@@ -334,18 +269,15 @@ rule collect_typing_results:
         optitype = expand(rules.run_optitype.output.typing_result, sample_id = config["sample_urls"]),
         kourami = expand(rules.run_kourami.output.typing_result, sample_id = config["sample_urls"]),
         hisatgenotype = expand(rules.run_hisatgenotype.output.typing_result, sample_id = config["sample_urls"]),
-        hla_la = expand(rules.run_hla_la.output.typing_result, sample_id = config["sample_urls"]),
     output:
         optitype = "results/04_optitype/OK",
         kourami = "results/04_kourami/OK",
         hisatgenotype = "results/04_hisat-genotype/OK",
-        hla_la = "results/04_hla-la/OK",
     shell:
         """
         touch {output.optitype}
         touch {output.kourami}
         touch {output.hisatgenotype}
-        touch {output.hla_la}
         """
 
 # Merge typing results into one file and calculate performance
@@ -355,7 +287,6 @@ rule parse_typing_results:
         optitype = rules.collect_typing_results.output.optitype,
         kourami = rules.collect_typing_results.output.kourami,
         hisatgenotype = rules.collect_typing_results.output.hisatgenotype,
-        hla_la = rules.collect_typing_results.output.hla_la,
     output:
         typing_results = "results/05_collected_typing_results/typing_results.json"
     shell:
@@ -365,7 +296,6 @@ rule parse_typing_results:
             --optitype $(dirname {input.optitype}) \
             --kourami $(dirname {input.kourami}) \
             --hisat-genotype $(dirname {input.hisatgenotype}) \
-            --hla-la $(dirname {input.hla_la}) \
             --output {output}
         """
 
