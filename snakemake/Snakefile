@@ -28,7 +28,6 @@ rule download_reference_genome:
     singularity: "docker://mwendler/wget"
     shell: "wget {params.ref_genome} -O {output}"
 
-docker pull biocontainers/samtools:v1.9-4-deb_cv1
 # CRAM conversion and indexing
 
 rule index_cram:

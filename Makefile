@@ -3,9 +3,7 @@ SHELL = /bin/bash
 VIRT ?= virt
 
 
-.PHONY: install
-
-install $(VIRT):
+install:
 	python3 -m venv $(VIRT)
 	$(VIRT)/bin/pip install --upgrade pip setuptools wheel
 	$(VIRT)/bin/pip install -r requirements.txt
@@ -13,7 +11,7 @@ install $(VIRT):
 	$(VIRT)/bin/python setup.py develop
 
 
-run_benchmark $(VIRT):
+run_benchmark:
 	snakemake \
 		--use-singularity \
 		--singularity-args "-B $(PWD):$(PWD)" \
@@ -24,7 +22,7 @@ run_benchmark $(VIRT):
 		--snakefile snakemake/Snakefile \
 		--configfile snakemake/config.yaml 
 	
-run_slim_benchmark $(VIRT):
+run_slim_benchmark:
 	snakemake \
 		--use-singularity \
 		--singularity-args "-B $(PWD):$(PWD)" \
