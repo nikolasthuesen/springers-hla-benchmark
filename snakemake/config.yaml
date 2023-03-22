@@ -2,7 +2,7 @@ reference_genome:
   GRCh38: "ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/GRCh38_reference_genome/GRCh38_full_analysis_set_plus_decoy_hla.fa"
 sample_urls:
   HG00537: "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/CHS/HG00537/exome_alignment/HG00537.alt_bwamem_GRCh38DH.20150826.CHS.exome.cram"
-#   NA19471: "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/LWK/NA19471/exome_alignment/NA19471.alt_bwamem_GRCh38DH.20150826.LWK.exome.cram"
+  NA19471: "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/LWK/NA19471/exome_alignment/NA19471.alt_bwamem_GRCh38DH.20150826.LWK.exome.cram"
 #   HG00353: "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/FIN/HG00353/exome_alignment/HG00353.alt_bwamem_GRCh38DH.20150826.FIN.exome.cram"
 #   HG00110: "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/GBR/HG00110/exome_alignment/HG00110.alt_bwamem_GRCh38DH.20150826.GBR.exome.cram"
 #   NA18502: "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/YRI/NA18502/exome_alignment/NA18502.alt_bwamem_GRCh38DH.20150826.YRI.exome.cram"
