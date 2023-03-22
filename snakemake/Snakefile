@@ -7,7 +7,6 @@ ruleorder: download_wes_samples > index_cram > cram_2_bam > index_bam
 
 rule all:
     input:
-        ""
         "results/05_collected_typing_results/typing_results.tsv"
 
 
@@ -33,6 +32,19 @@ rule download_reference_genome:
     singularity: "docker://arunvelsriram/utils"
     shell: "wget {params.ref_genome} -O {output}"
 
+
+rule bwa_index_ref:
+    input:
+        ref_genome = rules.download_reference_genome.output,
+    output:
+        ref_genome_index = "results/00_reference_data/GRCh38_full_analysis_set_plus_decoy_hla.fa.bwt"
+    singularity: "docker://albertea/kourami_hla:0.1"
+    shell:
+        """
+        bwa index {input.ref_genome}
+        """
+
+
 # CRAM conversion and indexing
 
 rule index_cram:
@@ -45,7 +57,7 @@ rule index_cram:
         crai = "results/00_cram/{sample_id}.cram.crai",
     singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
     shell: 
-        "samtools index -@{threads} {input.cram}"
+        "samtools index -@ {threads} {input.cram}"
 
 rule cram_2_bam:
     input:
@@ -62,7 +74,7 @@ rule cram_2_bam:
         samtools view -b -@ {threads} -T {input.ref_genome} -o - {input.cram} | \
         samtools sort --threads {threads} -n - | \
         samtools fixmate --threads {threads} -m - - | \
-        samtools sort -o {output.bam} -
+        samtools sort --threads {threads} -o {output.bam} -
         """
 
 rule index_bam:
@@ -76,7 +88,7 @@ rule index_bam:
     singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
     shell:
         """
-        samtools index -@{threads} {input.bam}
+        samtools index -@ {threads} {input.bam}
         """
 
 
@@ -87,15 +99,13 @@ rule bam2fastq:
     output:
         fq1 = "results/02_fastq/{sample_id}.r1.fq",
         fq2 = "results/02_fastq/{sample_id}.r2.fq",
-    params:
-        hla_ref = "/usr/local/bin/OptiType-1.3.4/data/hla_reference_dna.fasta",
     threads: 8
     resources: 
         mem = mem(gb = 40),
     singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
     shell:
         """
-        samtools collate --threads {threads} {input.bam} -O | samtools bam2fq -1 {output.fq1} -2 {output.fq2} -N -O -
+        samtools bam2fq -@{threads} -1 {output.fq1} -2 {output.fq2} -O -
         """
 
 # # # HLA typing
@@ -126,7 +136,7 @@ rule hla_read_extraction:
             /usr/local/bin/OptiType-1.3.4/data/hla_reference_dna.fasta \
             {input.fq}
 
-        samtools bam2fq {input.fq}_temp.bam > {output.fq}
+        samtools bam2fq -@ {threads} {input.fq}_temp.bam > {output.fq}
 
         rm {input.fq}_temp.bam
         """
@@ -136,7 +146,7 @@ rule run_optitype:
     input:
         fq1 = "results/03_fastq_hla_extracted/{sample_id}.r1.fq",
         fq2 = "results/03_fastq_hla_extracted/{sample_id}.r2.fq",
-    threads: 4,
+    threads: 4
     resources: 
         mem = mem(gb = 20),
     output:
@@ -145,6 +155,7 @@ rule run_optitype:
     shell:
         """
         python /usr/local/bin/OptiType/OptiTypePipeline.py \
+            --nproc {threads} \
             -i {input.fq1} {input.fq2} \
             -d \
             -v \
@@ -158,18 +169,6 @@ rule run_optitype:
 # https://github.com/Kingsford-Group/kourami/blob/master/preprocessing.md
 
 
-rule bwa_index_ref:
-    input:
-        ref_genome = rules.download_reference_genome.output,
-    output:
-        ref_genome_index = "results/00_reference_data/GRCh38_full_analysis_set_plus_decoy_hla.fa.bwt"
-    singularity: "docker://zlskidmore/kourami:0.9.7"
-    shell:
-        """
-        bwa index {input.ref_genome}
-        """
-
-
 rule kourami_mapping:
     input:
         ref_genome = rules.download_reference_genome.output,
@@ -181,9 +180,11 @@ rule kourami_mapping:
     threads: 8
     resources: 
         mem = mem(gb = 20),
-    singularity: "docker://zlskidmore/kourami:0.9.7"
+    singularity: "docker://albertea/kourami_hla:0.1"
     shell:
         """
+        /kourami-0.9.6/scripts/alignAndExtract_hs38DH.sh -r {input.ref_genome} {wildcards.sample_id} {input.bam}
+
         mv {wildcards.sample_id}_on_KouramiPanel.bam {output.kourami_mapping}
         mv {wildcards.sample_id}_extract_*.fq.gz $(dirname '{output.kourami_mapping}')
         """
@@ -197,11 +198,11 @@ rule run_kourami:
     threads: 8
     resources: 
         mem = mem(gb = 20),
-    singularity: "docker://zlskidmore/kourami:0.9.7"
+    singularity: "docker://albertea/kourami_hla:0.1"
     shell:
         """
-        java -jar /usr/local/bin/kourami-0.9.6/target/Kourami.jar \
-            -d /usr/local/bin/kourami-0.9.6/db \
+        java -jar /kourami-0.9.6/target/Kourami.jar \
+            -d /kourami-0.9.6/db \
             -o {wildcards.sample_id} \
             {input.kourami_mapping}
 
@@ -214,7 +215,7 @@ rule run_kourami:
 rule run_hisatgenotype:
     input:
         fq1 = rules.bam2fastq.output.fq1,
-        fq2 = rules.bam2fastq.output.fq2,
+        fq2 = rules.bam2fastq.output.fq2,   
     output:
         typing_result = "results/04_hisat-genotype/{sample_id}/assembly_graph-hla.{sample_id}_r1_fq-hla-extracted-1_fq.report"
     threads: 8
@@ -238,7 +239,6 @@ rule run_hisatgenotype:
 
 rule download_hla_la_ref:
     output: "results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT.tar.gz",
-    threads: 10
     resources:
         mem = mem(gb = 50)
     singularity: "docker://zlskidmore/hla-la:1.0.1"
@@ -254,7 +254,7 @@ rule generate_hla_la_graph:
         fasta="results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT/extendedReferenceGenome/extendedReferenceGenome.fa",
     params:
         rule_folder = "results/00_hla_la_reference/"
-    threads: 10
+    threads: 8
     resources:
         mem = mem(gb = 50)
     singularity: "docker://zlskidmore/hla-la:1.0.1"
@@ -269,7 +269,7 @@ rule generate_hla_la_graph:
 rule index_hla_la_graph:
     input: rules.generate_hla_la_graph.output.fasta,
     output: "results/00_hla_la_reference/PRG_MHC_GRCh38_withIMGT/extendedReferenceGenome/extendedReferenceGenome.fa.bwt"
-    singularity: "docker://zlskidmore/hla-la:1.0.1" 
+    singularity: "docker://zlskidmore/hla-la:1.0.1"
     shell:
         """
         bwa index {input}
@@ -283,7 +283,7 @@ rule run_hla_la:
         graph_index = rules.index_hla_la_graph.output
     output:
         typing_result = "results/04_hla-la/{sample_id}/hla/R1_bestguess_G.txt"
-    threads: 10
+    threads: 8
     resources: 
         mem = mem(gb = 50),
     singularity: "docker://zlskidmore/hla-la:1.0.1"
@@ -296,7 +296,7 @@ rule run_hla_la:
             --graph ../../../../../$(dirname $graph_input) \
             --sampleID {wildcards.sample_id} \
             --maxThreads {threads} \
-            --workingDir $(dirname $(dirname '{output.typing_result}'))
+            --workingDir $(dirname $(dirname $(dirname '{output.typing_result}')))
         """
 
 
