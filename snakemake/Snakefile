@@ -105,7 +105,7 @@ rule bam2fastq:
     singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
     shell:
         """
-        samtools bam2fq -@{threads} -1 {output.fq1} -2 {output.fq2} -O -
+        samtools bam2fq -@{threads} -1 {output.fq1} -2 {output.fq2} -O {input.bam}
         """
 
 # # # HLA typing
