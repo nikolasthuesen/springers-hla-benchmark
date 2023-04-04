@@ -50,12 +50,24 @@ source virt/bin/activate
 
 3. Run Snakemake workflow. 
 
+For the full pipeline:
+
 ```
 make run_benchmark
 ```
+For a simplified, much quicker pipeline without HLA*LA:
 
-Plots and typing results will be found in the `results` folder, which is generated when running the `Snakemake` workflow
+```
+make run_slim_benchmark
+```
 
+Plots and typing results will be found in the `results` folder, which is generated when running the `Snakemake` workflow.
+
+If any job fails or if the Snakemake pipeline stalls, it is possible to clear the cache without having to re-download the containers by running:
+
+```
+make clear_snakemake_cache
+```
 
 
 
