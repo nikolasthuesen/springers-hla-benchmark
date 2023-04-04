@@ -225,10 +225,10 @@ rule run_kourami:
 
 rule run_hisatgenotype:
     input:
-        fq1 = rules.bam2fastq.output.fq1,
-        fq2 = rules.bam2fastq.output.fq2,   
+        fq1 = rules.kourami_mapping.output.fq1,
+        fq2 = rules.kourami_mapping.output.fq2,
     output:
-        typing_result = "results/04_hisat-genotype/{sample_id}/assembly_graph-hla.{sample_id}_r1_fq-hla-extracted-1_fq.report"
+        typing_result = "results/04_hisat-genotype/{sample_id}/{sample_id}_results.txt"
     threads: 8
     resources: 
         mem = mem(gb = 10),
@@ -243,6 +243,8 @@ rule run_hisatgenotype:
             --out-dir $(dirname '{output.typing_result}') \
             -1 {input.fq1} \
             -2 {input.fq2}
+        
+        cp results/04_hisat-genotype/{wildcards.sample_id}/assembly_graph-hla*.report results/04_hisat-genotype/{wildcards.sample_id}/{wildcards.sample_id}_results.txt
         
         """
 

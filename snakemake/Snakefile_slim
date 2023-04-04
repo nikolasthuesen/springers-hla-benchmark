@@ -74,11 +74,12 @@ rule cram_2_bam:
         samtools sort --threads {threads} -o {output.bam} -
         """
 
-rule index_and_sort_bam:
+rule index_bam:
     input: 
         bam = rules.cram_2_bam.output.bam,
     output:
         bai = "results/01_bam/{sample_id}.bam.bai",
+
     threads: 8
     resources: 
         mem = mem(gb = 40),
@@ -86,7 +87,6 @@ rule index_and_sort_bam:
     shell:
         """
         samtools index -@ {threads} {input.bam}
-        samtools collate --threads {threads} {input.bam}
         """
 
 #HLA read extraction
@@ -96,7 +96,7 @@ rule kourami_mapping:
         ref_genome = rules.download_reference_genome.output,
         ref_genome_index = rules.bwa_index_ref.output.ref_genome_index,
         bam = rules.cram_2_bam.output.bam,
-        bai = rules.index_and_sort_bam.output.bai,
+        bai = rules.index_bam.output.bai,
     output:
         kourami_mapping = "results/02_kourami_alignment/{sample_id}_on_KouramiPanel.bam",
         fq1 = "results/02_kourami_alignment/{sample_id}_extract_1.fq.gz",
@@ -178,7 +178,7 @@ rule run_hisatgenotype:
         fq1 = rules.kourami_mapping.output.fq1,
         fq2 = rules.kourami_mapping.output.fq2,
     output:
-        typing_result = "results/04_hisat-genotype/{sample_id}/assembly_graph-hla.{sample_id}_r1_fq-hla-extracted-1_fq.report"
+        typing_result = "results/04_hisat-genotype/{sample_id}/{sample_id}_results.txt"
     threads: 8
     resources: 
         mem = mem(gb = 10),
@@ -193,6 +193,8 @@ rule run_hisatgenotype:
             --out-dir $(dirname '{output.typing_result}') \
             -1 {input.fq1} \
             -2 {input.fq2}
+        
+        cp results/04_hisat-genotype/{wildcards.sample_id}/assembly_graph-hla*.report results/04_hisat-genotype/{wildcards.sample_id}/{wildcards.sample_id}_results.txt
         
         """
 

@@ -178,7 +178,7 @@ def load_optitype_results(optitype_result_filepath):
 
 def load_hisat_genotype_results(hisatgenotype_result_filepath):
 
-    hisatgenotype_files = find_tool_results(hisatgenotype_result_filepath, 'extracted-1_fq.report')
+    hisatgenotype_files = find_tool_results(hisatgenotype_result_filepath, 'results.txt')
    
     #Save two predictions. One, with one guess per allele and one with the full prediction
     hisatgenotype_results = {}
