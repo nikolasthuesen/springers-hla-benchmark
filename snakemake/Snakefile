@@ -57,7 +57,7 @@ rule index_cram:
         crai = "results/00_cram/{sample_id}.cram.crai",
     singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
     shell: 
-        "samtools index --threads {threads} {input.cram}"
+        "samtools index -@ {threads} {input.cram}"
 
 rule cram_2_bam:
     input:
@@ -88,7 +88,7 @@ rule index_bam:
     singularity: "docker://biocontainers/samtools:v1.9-4-deb_cv1",
     shell:
         """
-        samtools index --threads {threads} {input.bam}
+        samtools index -@ {threads} {input.bam}
         """
 
 

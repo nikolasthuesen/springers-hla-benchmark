@@ -22,6 +22,7 @@ run_benchmark:
 		--snakefile snakemake/Snakefile \
 		--configfile snakemake/config.yaml 
 	
+	
 run_slim_benchmark:
 	snakemake \
 		--use-singularity \
@@ -32,3 +33,6 @@ run_slim_benchmark:
 		--cores 24 \
 		--snakefile snakemake/Snakefile_slim \
 		--configfile snakemake/config.yaml
+
+clear_snakemake_cache:
+	rm -r .snakemake/auxiliary/ .snakemake/conda* .snakemake/incomplete/ .snakemake/lo* .snakemake/metadata/ .snakemake/shadow/
