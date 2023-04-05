@@ -225,8 +225,8 @@ rule run_kourami:
 
 rule run_hisatgenotype:
     input:
-        fq1 = rules.kourami_mapping.output.fq1,
-        fq2 = rules.kourami_mapping.output.fq2,
+        fq1 = rules.bam2fastq.output.fq1,
+        fq2 = rules.bam2fastq.output.fq2,
     output:
         typing_result = "results/04_hisat-genotype/{sample_id}/{sample_id}_results.txt"
     threads: 8
