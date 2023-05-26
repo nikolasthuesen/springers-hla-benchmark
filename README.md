@@ -17,12 +17,12 @@ Additionally, the pipeline is set up to HLA type and evaluate the results from o
 
 
 ## Software requirements
-The HLA typing tools are called using Singularity which runs Docker images from https://hub.docker.com/.
-No installation of the specific HLA typing tools is therefore needed.
 
 1. [Python 3](https://www.python.org/)
 2. [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/installation.html)
 
+The HLA typing tools are called using Singularity which runs Docker images from https://hub.docker.com/.
+No installation of the specific HLA typing tools is therefore needed.
 
 ## System requirements
 - At least 40 GB of memory is needed to run the most memory-heavy step which is indexing HLA*LA's graph structure.
